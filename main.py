@@ -49,7 +49,7 @@ def ler_disciplinas(
 ):
     nome = nome_disciplina.casefold()
     if nome not in fake_db:
-        return "Não exite essa disciplina"
+        raise HTTPException(status_code=404, detail="Item not found")
     return fake_db[nome]
 
 
@@ -67,8 +67,9 @@ def ler_nomes():
 def ler_anotacao(
     anotacao_disciplina: str = Path(..., description="Nome da disciplina contendo as anotações desejadas", example="Bar")
 ):
-    if "anotacoes" not in fake_db[anotacao_disciplina]:
-        return "Não há anotações"
+    if anotacao_disciplina not in fake_db or "anotacoes" not in fake_db[anotacao_disciplina]:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
     notas = fake_db[anotacao_disciplina]["anotacoes"]
 
     return list(notas.values())
@@ -110,7 +111,7 @@ def cria_disciplina(
 ):
     nome_disciplina = disciplina.nome.casefold()
     if nome_disciplina in fake_db:
-        return "Disciplina já existe"
+        raise HTTPException(status_code=418, detail="Disciplina já existe")
     
     fake_db.update({nome_disciplina: disciplina})
     return disciplina
@@ -124,7 +125,7 @@ def adiciona_nota(
     nota: str = Query(...,  description="Nota a ser adicionada")
 ):
     if nome_disciplina not in fake_db:
-        return "Disciplina inexistente"
+        raise HTTPException(status_code=404, detail="Item not found")
 
     if "anotacoes" not in fake_db[nome_disciplina]:
         fake_db[nome_disciplina].update({"anotacoes": {}})
@@ -142,14 +143,8 @@ def modifica_nota(
     nova_nota: str = Query(...,  description="Nova nota a ser adicionada")
 ):
 
-    if nome_disciplina not in fake_db:
-        return "Disciplina inexistente"
-
-    if "anotacoes" not in fake_db[nome_disciplina]:
-        return "Não há anotações"
-
-    if id_nota not in fake_db[nome_disciplina]["anotacoes"]:
-        return "Nota inexistente"
+    if nome_disciplina not in fake_db or "anotacoes" not in fake_db[nome_disciplina] or id_nota not in fake_db[nome_disciplina]["anotacoes"]:
+        raise HTTPException(status_code=404, detail="Item not found")
 
     fake_db[nome_disciplina]["anotacoes"].update({id_nota: nova_nota})
 
@@ -161,7 +156,6 @@ def modifica_tudo(
     nome_disciplina: str = Path(..., description="O nome da disciplina que terá tudo modificado", example="Baz"),
     disciplina: Disciplina = Body(...),
 ):
-    disciplina_dict = disciplina.dict()
 
     if nome_disciplina not in fake_db:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -180,7 +174,7 @@ def deleta_disciplina(
     nome_disciplina: str = Path(..., description="O nome da disciplina a ser deletada", example="Baz")
 ):
     if nome_disciplina not in fake_db:
-        return "Disciplina inexistente"
+        raise HTTPException(status_code=404, detail="Item not found")
 
     fake_db.pop(nome_disciplina)
 
@@ -192,7 +186,7 @@ def deleta_nota(
     id_nota: UUID = Path(..., description="Id da nota a ser deletada", example="Quux"),
 ):
     if nome_disciplina not in fake_db or id_nota not in list(fake_db[nome_disciplina]["anotacoes"].keys()) :
-        return "Disciplina/Nota inexistente"
+        raise HTTPException(status_code=404, detail="Item not found")
 
     fake_db[nome_disciplina]["anotacoes"].pop(id_nota)
 
