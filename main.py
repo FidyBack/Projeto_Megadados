@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Query, Path, status, HTTPException
+from fastapi import FastAPI, Query, Path, Depends, status, HTTPException
 from fastapi.responses import PlainTextResponse
 from fastapi.param_functions import Body
+from requests.models import DEFAULT_REDIRECT_LIMIT
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel, Field
@@ -9,6 +10,36 @@ from uuid import UUID, uuid4
 
 app = FastAPI()
 
+
+fake_db = {
+    "matematica": {
+        "nome": "Matematica", 
+        "professor": "Angélica", 
+        "anotacoes": {
+            "9470e1d7-bbbe-4037-9032-4b5e1c0ffddf": "Muito Legal!", 
+            "f77fc0df-d9ac-4e70-a7c6-96d4bcf39484": "Gosto Muito", 
+            "227ed50c-9cd9-4762-af8f-bc74954bdd9b": "Trabalhar Nisso"
+        }
+    },
+    "quimica": {
+        "nome": "Quimica",
+        "anotacoes": {
+            "9d752a00-2185-43c6-b6db-269f11b16029": "Meh"
+        }
+    },
+    "portugues": {
+        "nome": "Portugues", 
+        "professor": "Arnaldo"
+    },
+    "ingles": {
+        "nome": "Ingles"
+    } 
+}
+
+
+#===================================#
+#               Models              #
+#===================================#
 
 class Disciplina(BaseModel):
     nome: str = Field(
@@ -28,14 +59,85 @@ class Disciplina(BaseModel):
     )
 
 
-fake_db = {
-    "matematica": {"nome": "Matemática", "professor": "Angélica", "anotacoes": 
-        {uuid4(): "Muito Legal!", uuid4(): "Gosto Muito", uuid4(): "Trabalhar Nisso"}
-    },
-    "quimica": {"nome": "Química", "professor": "Fê", "anotacoes": {uuid4(): "Meh"}},
-    "portugues": {"nome": "Português", "professor": "Arnaldo"},
-    "ingles": {"nome": "Ingles"} 
-}
+#=======================================#
+#               Dependences             #
+#=======================================#
+
+def disc(
+    disciplina: Disciplina = Body(
+        ..., 
+        description="Corpo da criação da disciplina",
+        examples={
+            "completo": {
+                "summary": "Exemplo completo",
+                "description": "Um exemplo com todos os elementos.",
+                "value": {
+                    "nome": "Foo",
+                    "professor": "Bar",
+                    "anotacoes": {uuid4(): "Uma bela anotação", uuid4(): "Pode ter mais de uma"}
+                }
+            },
+            "incompleto": {
+                "summary": "Exemplo incompleto",
+                "description": "Um exemplo com elementos faltantes.",
+                "value": {
+                    "nome": "Foo",
+                    "anotacoes": {"uuid_1": "Uma bela anotação", uuid4(): "Pode ter mais de uma"}
+                }
+            },
+            "minimo": {
+                "summary": "Exemplo mínimo",
+                "description": "Um exemplo com apenas os elementos obrigatórios.",
+                "value": {
+                    "nome": "Foo"
+                }
+            }
+        }
+    )
+):
+    return disciplina
+
+def nome_disc(nome_disciplina: str = Path(..., description="O nome da disciplina desejada", example="Foo")):
+    return nome_disciplina.casefold()
+
+class NotaDisciplinaQuery:
+    def __init__(self, nome_disciplina: str = Depends(nome_disc), id_nota: UUID = Query(..., description="Id da anotação em formato UUID", example="Bar")):
+        self.nome_disciplina = nome_disciplina
+        self.id_nota = str(id_nota)
+
+class NotaDisciplinaPath:
+    def __init__(self, nome_disciplina: str = Depends(nome_disc), id_nota: UUID = Path(..., description="Id da anotação em formato UUID", example="Bar")):
+        self.nome_disciplina = nome_disciplina
+        self.id_nota = str(id_nota)
+
+class CommonInfoQ:
+    def __init__(self, nome_disc: NotaDisciplinaQuery = Depends(), nota: str = Query(...,  description="Anotação requerida", example="Baz")):
+        self.nome_disciplina = nome_disc.nome_disciplina
+        self.id_nota = nome_disc.id_nota
+        self.nota = nota
+
+class CommonInfoP:
+    def __init__(self, disc: NotaDisciplinaPath = Depends(), nota: str = Query(...,  description="Anotação requerida", example="Baz")):
+        self.nome_disciplina = disc.nome_disciplina
+        self.id_nota = disc.id_nota
+        self.nota = nota
+
+
+async def verifica_nome(nome: str = Depends(nome_disc)):
+    if nome not in fake_db:
+        raise HTTPException(status_code=404, detail=f"Disciplina {nome} Inexistente")
+
+async def verifica_campo_nota(nome: str = Depends(nome_disc)):
+    if "anotacoes" not in fake_db[nome]:
+        raise HTTPException(status_code=404, detail= "Não há anotações nesta disciplina")
+
+async def verifica_nota_especifica(notaDisc: NotaDisciplinaPath = Depends()):
+    if notaDisc.id_nota not in fake_db[notaDisc.nome_disciplina]["anotacoes"]:
+        raise HTTPException(status_code=404, detail="Anotação Inexistente")
+
+async def verifica_diciplina(disciplina: Disciplina = Depends(disc)):
+    if disciplina.nome.casefold() in fake_db:
+        raise HTTPException(status_code=418, detail="Disciplina já existe")
 
 
 #===================================#
@@ -58,6 +160,7 @@ async def http_exception_handler(request, exc):
     tags=["Disciplinas"],
     summary="Devolve as Disciplinas",
     description="Retorna um dicionário com todas as disciplimas disponíveis e todas as informações presentes nelas",
+    deprecated=True,
 )
 def ler_tudo():
     return fake_db
@@ -71,13 +174,9 @@ def ler_tudo():
     tags=["Disciplinas"],
     summary="Devolve uma Disciplina",
     description="Retorna todas as informações de uma disciplina em específico",
+    dependencies= [Depends(verifica_nome)],
 )
-def ler_disciplinas(
-    nome_disciplina: str = Path(..., description="O nome da disciplina desejada", example="Foo")
-):
-    nome = nome_disciplina.casefold()
-    if nome not in fake_db:
-        raise HTTPException(status_code=404, detail="Disciplina Inexistente")
+def ler_disciplinas(nome: str = Depends(nome_disc)):
     return fake_db[nome]
 
 # Lista o nome das disciplinas
@@ -96,22 +195,14 @@ def ler_nomes():
 
 # Lista as anotações de uma disciplina
 @app.get(
-    "/disciplinas/{anotacao_disciplina}/notas/", 
+    "/disciplinas/notas/{nome_disciplina}", 
     status_code=status.HTTP_202_ACCEPTED, 
     tags=["Anotações"],
     summary="Devolve as Anotações",
     description="Retorna uma lista com o as anotações de uma disciplina",
+    dependencies= [Depends(verifica_nome), Depends(verifica_campo_nota)],
 )
-def ler_anotacao(
-    anotacao_disciplina: str = Path(..., description="Nome da disciplina contendo as anotações desejadas", example="Foo")
-):
-    nome = anotacao_disciplina.casefold()
-    if nome not in fake_db:
-        raise HTTPException(status_code=404, detail="Disciplina Inexistente")
-
-    if "anotacoes" not in fake_db[nome]:
-        return "Não há anotações nesta disciplina."
-    
+def ler_anotacao(nome: str = Depends(nome_disc)):
     notas = fake_db[nome]["anotacoes"]
     return list(notas.values())
 
@@ -122,45 +213,13 @@ def ler_anotacao(
 
 # Cria disciplina
 @app.post(
-    "/disciplinas/", 
-    response_model=Disciplina, 
-    response_model_exclude_unset=True, 
+    "/disciplinas/",
     status_code=status.HTTP_201_CREATED, 
     tags=["Disciplinas"],
     summary="Cria uma Disciplina",
+    dependencies=[Depends(verifica_diciplina)]
 )
-def cria_disciplina(
-    disciplina: Disciplina = Body(
-        ..., 
-        description="Corpo da criação da disciplina",
-        examples={
-            "completo": {
-                "summary": "Exemplo completo",
-                "description": "Um exemplo com todos os elementos.",
-                "value": {
-                    "nome": "Foo",
-                    "professor": "Bar",
-                    "anotacoes": {uuid4(): "Uma bela anotação", uuid4(): "Pode ter mais de uma"}
-                }
-            },
-            "incompleto": {
-                "summary": "Exemplo incompleto",
-                "description": "Um exemplo com elementos faltantes.",
-                "value": {
-                    "nome": "Baz",
-                    "anotacoes": {"uuid_1": "Uma bela anotação", uuid4(): "Pode ter mais de uma"}
-                }
-            },
-            "minimo": {
-                "summary": "Exemplo mínimo",
-                "description": "Um exemplo com apenas os elementos obrigatórios.",
-                "value": {
-                    "nome": "Qux"
-                }
-            }
-        }
-    )
-):
+def cria_disciplina(disciplina: Disciplina = Depends(disc)):
     """
     Cria uma disciplina com todas as informações necessárias, tais como:
 
@@ -168,65 +227,47 @@ def cria_disciplina(
     - **Professor** (*Opcional*): Nome do professor que leciona a disciplina
     - **Anotações** (*Opcional*): Um dicionário com as anotações da matéria (O dicionário está construido com o conjunto *ID:Anotação*, onde o ID é constuido usando uuid)
     """
-    nome_disciplina = disciplina.nome.casefold()
-    if nome_disciplina in fake_db:
-        raise HTTPException(status_code=418, detail="Disciplina já existe")
-    
-    fake_db.update({nome_disciplina: disciplina})
-    return disciplina
+    nome = disciplina.nome.casefold()
+    new_data = disciplina.dict(exclude_unset=True)
+    new_dict = {nome: new_data}
+    fake_db.update(new_dict)
+    return new_dict
 
 # Adiciona nota em uma disciplina
 @app.put(
-    "/disciplinas/{nome_disciplina}/{id_nota}", 
-    response_model=Disciplina, 
-    response_model_exclude_unset=True, 
+    "/disciplinas/{nome_disciplina}", 
+    response_model=Disciplina,
+    response_model_exclude_unset=True,
     status_code=status.HTTP_200_OK, 
     tags=["Anotações"],
     summary="Adiciona uma Nota",
     description="Cria uma nova nota dentro da disciplina",
+    dependencies= [Depends(verifica_nome)],
 ) 
-def adiciona_nota(
-    nome_disciplina: str = Path(..., description="O nome da disciplina que terá uma nota nova", example="Foo"),
-    id_nota: UUID = Path(..., description="Id da nota a ser adicionada", example="Bar"),
-    nota: str = Query(...,  description="Nota a ser adicionada")
-):
-    nome = nome_disciplina.casefold()
-    if nome not in fake_db:
-        raise HTTPException(status_code=404, detail="Disciplina Inexistente")
+def adiciona_nota(commons: CommonInfoQ = Depends()):
+    nome = commons.nome_disciplina
 
     if "anotacoes" not in fake_db[nome]:
         fake_db[nome].update({"anotacoes": {}})
 
-    fake_db[nome]["anotacoes"].update({id_nota: nota})
-
+    fake_db[nome]["anotacoes"].update({commons.id_nota: commons.nota})
     return fake_db[nome]
 
 # Modifica nota em uma disciplina
 @app.patch(
-    "/disciplinas/{nome_disciplina}/modifica/{id_nota}", 
+    "/disciplinas/{nome_disciplina}/{id_nota}", 
     response_model=Disciplina, 
     response_model_exclude_unset=True, 
     status_code=status.HTTP_200_OK, 
     tags=["Anotações"],
     summary="Modifica uma Nota",
     description="Modifica uma nota existente dentro da disciplina",
+    dependencies= [Depends(verifica_nome), Depends(verifica_campo_nota), Depends(verifica_nota_especifica)],
 ) 
-def modifica_nota(
-    nome_disciplina: str = Path(..., description="O nome da disciplina que terá uma nota modificada", example="Foo"),
-    id_nota: UUID = Path(..., description="Id da nota a ser modificada", example="Bar"),
-    nova_nota: str = Query(...,  description="Nova nota a ser adicionada")
-):
-    nome = nome_disciplina.casefold()
-    if nome not in fake_db:
-        raise HTTPException(status_code=404, detail="Disciplina Inexistente")
-
-    if "anotacoes" not in fake_db[nome]:
-        raise HTTPException(status_code=404, detail="Não há anotações para essa disciplina")
-
-    if id_nota not in fake_db[nome]["anotacoes"]:
-        raise HTTPException(status_code=404, detail="Anotação Inexistente")
-
-    fake_db[nome]["anotacoes"].update({id_nota: nova_nota})
+def modifica_nota(commons: CommonInfoP = Depends()):
+    nome = commons.nome_disciplina
+    id_nota = commons.id_nota
+    fake_db[nome]["anotacoes"].update({id_nota: commons.nota})
 
     return fake_db[nome]
 
@@ -239,20 +280,10 @@ def modifica_nota(
     tags=["Disciplinas"],
     summary="Modifica uma Disciplona",
     description="Modifica todos os itens de uma disciplina, incluindo nome e professor, se o mesmo existir. (A modificação das anotações é feita por outra chamada)",
+    dependencies= [Depends(verifica_nome)],
+
 )
-def modifica_tudo(
-    nome_disciplina: str = Path(..., description="O nome da disciplina que terá tudo modificado", example="Foo"),
-    disciplina: Disciplina = Body(
-        ...,
-        example={
-            "nome": "Foo",
-            "professor": "Bar"
-        }
-    ),
-):
-    nomeD = nome_disciplina.casefold()
-    if nomeD not in fake_db:
-        raise HTTPException(status_code=404, detail="Disciplina Inexistente")
+def modifica_tudo(nomeD: str = Depends(nome_disc), disciplina: Disciplina = Body(..., example={ "nome": "Foo", "professor": "Bar"})):
 
     if disciplina.nome:
         new_nome = disciplina.nome.casefold()
@@ -270,44 +301,33 @@ def modifica_tudo(
 #===================================#
 
 # Deleta disciplina
-@app.delete(
-    "/disciplinas/{nome_disciplina}", 
-    status_code=status.HTTP_200_OK, 
-    tags=["Disciplinas"],
-    summary="Deleta uma Disciplina",
-)
-def deleta_disciplina(
-    nome_disciplina: str = Path(..., description="O nome da disciplina a ser deletada", example="Foo")
-):
-    nome = nome_disciplina.casefold()
-    if nome not in fake_db:
-        raise HTTPException(status_code=404, detail="Disciplina Inexistente")
-
+@app.delete( "/disciplinas/{nome_disciplina}", tags=["Disciplinas"], summary="Deleta uma Disciplina", dependencies= [Depends(verifica_nome)],)
+def deleta_disciplina(nome: str = Depends(nome_disc)):
     fake_db.pop(nome)
 
 # Deleta nota de uma disciplina
 @app.delete(
     "/disciplinas/{nome_disciplina}/{id_nota}", 
     response_model=Disciplina, 
-    response_model_exclude_unset=True, 
-    status_code=status.HTTP_200_OK, 
     tags=["Anotações"],
     summary="Deleta uma Anotação",
-    description="Deleta uma anotação de uma disciplina selecionada",
+    dependencies= [Depends(verifica_nome), Depends(verifica_campo_nota), Depends(verifica_nota_especifica)],
 )
-def deleta_nota(
-    nome_disciplina: str = Path(..., description="O nome da disciplina a ser deletada", example="Foo"),
-    id_nota: UUID = Path(..., description="Id da nota a ser deletada", example="Bar"),
-):
-    nome = nome_disciplina.casefold()
-    if nome not in fake_db:
-        raise HTTPException(status_code=404, detail="Disciplina Inexistente")
-
-    if "anotacoes" not in fake_db[nome]:
-        raise HTTPException(status_code=404, detail="Não há anotações para essa disciplina")
-
-    if id_nota not in list(fake_db[nome]["anotacoes"].keys()):
-        raise HTTPException(status_code=404, detail="Anotação Inexistente")
+def deleta_nota(commons: NotaDisciplinaQuery = Depends()):
+    nome = commons.nome_disciplina
+    id_nota = commons.id_nota
 
     fake_db[nome]["anotacoes"].pop(id_nota)
     return fake_db[nome]
+
+# from fastapi import Depends, FastAPI
+# from fastapi.security import OAuth2PasswordBearer
+
+# app = FastAPI()
+
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
+# @app.get("/items/")
+# async def read_items(token: str = Depends(oauth2_scheme)):
+#     return {"token": token}
