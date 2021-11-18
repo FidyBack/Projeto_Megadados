@@ -1,7 +1,6 @@
-from fastapi import FastAPI, Query, Path, Depends, status, HTTPException
+from fastapi import FastAPI,  status, HTTPException, Query, Path, Depends
 from fastapi.responses import PlainTextResponse
 from fastapi.param_functions import Body
-from requests.models import DEFAULT_REDIRECT_LIMIT
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel, Field
@@ -68,8 +67,8 @@ def disc(
         ..., 
         description="Corpo da criação da disciplina",
         examples={
-            "completo": {
-                "summary": "Exemplo completo",
+            "criacao_completo": {
+                "summary": "Criação - Exemplo Completo",
                 "description": "Um exemplo com todos os elementos.",
                 "value": {
                     "nome": "Foo",
@@ -77,21 +76,36 @@ def disc(
                     "anotacoes": {uuid4(): "Uma bela anotação", uuid4(): "Pode ter mais de uma"}
                 }
             },
-            "incompleto": {
-                "summary": "Exemplo incompleto",
-                "description": "Um exemplo com elementos faltantes.",
+            "criacao_parcial": {
+                "summary": "Criação - Exemplo Parcial",
+                "description": "Um exemplo com alguns elementos opcionais.",
                 "value": {
                     "nome": "Foo",
                     "anotacoes": {"uuid_1": "Uma bela anotação", uuid4(): "Pode ter mais de uma"}
                 }
             },
-            "minimo": {
-                "summary": "Exemplo mínimo",
+            "criacao_minimo": {
+                "summary": "Criação - Exemplo Mínimo",
                 "description": "Um exemplo com apenas os elementos obrigatórios.",
                 "value": {
                     "nome": "Foo"
                 }
-            }
+            },
+            "modificacao_minimo": {
+                "summary": "Modificação - Exemplo Mínimo",
+                "description": "Um exemplo com apenas os elementos obrigatórios.",
+                "value": {
+                    "nome": "Foo"
+                }
+            },
+            "modificacao_completo": {
+                "summary": "Modificação - Exemplo Completo",
+                "description": "Um exemplo com todos os elementos.",
+                "value": {
+                    "nome": "Foo", 
+                    "professor": "Bar"
+                }
+            },
         }
     )
 ):
@@ -283,7 +297,7 @@ def modifica_nota(commons: CommonInfoP = Depends()):
     dependencies= [Depends(verifica_nome)],
 
 )
-def modifica_tudo(nomeD: str = Depends(nome_disc), disciplina: Disciplina = Body(..., example={ "nome": "Foo", "professor": "Bar"})):
+def modifica_tudo(nomeD: str = Depends(nome_disc), disciplina: Disciplina = Depends(disc)):
 
     if disciplina.nome:
         new_nome = disciplina.nome.casefold()
@@ -319,15 +333,3 @@ def deleta_nota(commons: NotaDisciplinaQuery = Depends()):
 
     fake_db[nome]["anotacoes"].pop(id_nota)
     return fake_db[nome]
-
-# from fastapi import Depends, FastAPI
-# from fastapi.security import OAuth2PasswordBearer
-
-# app = FastAPI()
-
-# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-
-# @app.get("/items/")
-# async def read_items(token: str = Depends(oauth2_scheme)):
-#     return {"token": token}
