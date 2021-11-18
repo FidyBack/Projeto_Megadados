@@ -64,28 +64,18 @@ def cria_disciplina(db: Session = Depends(get_db), disciplina: Disciplina = Depe
     """
     return crud.create_discipline(db, disciplina=disciplina)
 
-# # Modifica uma Disciplona
-# @router.patch(
-#     "/{nome_disciplina}", 
-#     response_model=Disciplina,
-#     response_model_exclude_unset=True,
-#     status_code=status.HTTP_200_OK,
-#     summary="Modifica uma disciplona",
-#     description="Modifica todos os itens de uma disciplina, incluindo nome e professor, se o mesmo existir. (A modificação das anotações é feita por outra chamada)",
-#     dependencies= [Depends(verifica_nome)],
+# Modifica uma Disciplina
+@router.patch(
+    "/{nome_disciplina}", 
+    # response_model=Disciplina,
+    status_code=status.HTTP_200_OK,
+    summary="Modifica uma disciplina",
+    description="Modifica todos os itens de uma disciplina, incluindo nome e professor, se o mesmo existir. (A modificação das anotações é feita por outra chamada)",
+    dependencies= [Depends(verifica_nome)],
 
-# )
-# def modifica_tudo(nomeD: str = Depends(nome_disc), disciplina: Disciplina = Depends(disc)):
-
-#     if disciplina.nome:
-#         new_nome = disciplina.nome.casefold()
-#         fake_db[new_nome] = fake_db.pop(nomeD)
-#         fake_db[new_nome]["nome"] = disciplina.nome
-
-#     if disciplina.professor:
-#         fake_db[new_nome]["professor"] = disciplina.professor
-
-#     return fake_db[new_nome]
+)
+def modifica_tudo(db: Session = Depends(get_db), nome: str = Depends(nome_disc), disciplina: Disciplina = Depends(disc)):
+    return crud.modify_discipline(db, nome, disciplina=disciplina)
 
 # Deleta uma Disciplina
 @router.delete(

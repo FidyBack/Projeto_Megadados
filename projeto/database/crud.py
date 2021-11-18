@@ -1,7 +1,8 @@
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.expression import null
-from . import models
 from .. import schemas
+from . import models
+
 
 # CRUD para as disciplinas
 def get_discipline(db: Session, nome: str):
@@ -24,7 +25,18 @@ def create_discipline(db: Session, disciplina: schemas.DisciplinaCreate):
     db.refresh(db_discipline)
     return db_discipline
 
-pass
+def modify_discipline(db: Session, nome: str, disciplina: schemas.Disciplina):
+    discip = db.query(models.Disciplina).filter(models.Disciplina.nome == nome).first()
+    disc_json = jsonable_encoder(discip)
+    discip_model = schemas.Disciplina(**disc_json)
+
+    new_disc = disciplina.dict(exclude_unset=True)
+    updated_disc = jsonable_encoder(discip_model.copy(update=new_disc))
+    
+    db.query(models.Disciplina).filter(models.Disciplina.nome == nome).update(updated_disc)
+    db.commit()
+
+    return updated_disc
 
 def delete_discipline(db: Session, nome: str):
     db.query(models.Disciplina).filter(models.Disciplina.nome == nome).delete()
