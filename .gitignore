@@ -1,3 +1,2 @@
-tutorial.py
-__pycache__
-.pytest_cache
+__pycache__/
+.pyteste_cache/

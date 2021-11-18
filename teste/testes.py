@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from main import app
+from ..main import app
 
 
 client = TestClient(app)
@@ -62,22 +62,22 @@ def test_read_all_disciplines_names():
     assert response.json() == ["Matematica", "Quimica", "Portugues", "Ingles"]
 
 def test_read_anotations_from_inexistent_discipline():
-    response = client.get("/disciplinas/notas/japones")
+    response = client.get("/notas/japones")
     assert response.status_code == 404
     assert response.text == "Disciplina japones Inexistente"
 
 def test_read_anotations_from_discipline_without_anotations():
-    response = client.get("/disciplinas/notas/ingles")
+    response = client.get("/notas/ingles")
     assert response.status_code == 404
     assert response.text == "Não há anotações nesta disciplina"
 
 def test_read_anotations_from_discipline_with_one_anotation():
-    response = client.get("/disciplinas/notas/quimica")
+    response = client.get("/notas/quimica")
     assert response.status_code == 202
     assert response.json() == ["Meh"]
 
 def test_read_anotations_from_discipline_with_multiple_anotations():
-    response = client.get("/disciplinas/notas/matematica")
+    response = client.get("/notas/matematica")
     assert response.status_code == 202
     assert response.json() == ["Muito Legal!", "Gosto Muito", "Trabalhar Nisso"]
 
@@ -163,13 +163,13 @@ def test_create_discipline_complete_and_delete():
     test_read_main()
 
 def test_add_anotations_from_inexistent_discipline():
-    response = client.put("/disciplinas/japones")
+    response = client.put("/notas/japones")
     assert response.status_code == 404
     assert response.text == "Disciplina japones Inexistente"
 
 def test_add_anotations_from_discipline_without_notes_and_delete():
     response = client.put(
-        "/disciplinas/ingles",
+        "/notas/ingles",
         params= {
             "id_nota": "9d752a00-2185-43c6-b6db-269f11b16029", 
             "nota": "Nota adicionada com sucesso!"
@@ -183,12 +183,12 @@ def test_add_anotations_from_discipline_without_notes_and_delete():
         }
     }
 
-    response = client.delete("/disciplinas/ingles/9d752a00-2185-43c6-b6db-269f11b16029")
+    response = client.delete("/notas/ingles/9d752a00-2185-43c6-b6db-269f11b16029")
     assert response.status_code == 200
 
 def test_add_anotations_from_discipline_with_notes_and_delete():
     response = client.put(
-        "/disciplinas/matematica",
+        "/notas/matematica",
         params= {
             "id_nota": "9d752a00-2185-43c6-b6db-269f11b16027", 
             "nota": "Nota adicionada com sucesso!"
@@ -206,26 +206,26 @@ def test_add_anotations_from_discipline_with_notes_and_delete():
         }
     }
 
-    response = client.delete("/disciplinas/matematica/9d752a00-2185-43c6-b6db-269f11b16027")
+    response = client.delete("/notas/matematica/9d752a00-2185-43c6-b6db-269f11b16027")
     assert response.status_code == 200
 
 def test_modify_anotations_from_inexistent_discipline():
     response = client.patch(
-        "/disciplinas/japones/9470e1d7-bbbe-4037-9032-4b5e1c0ffddf"
+        "/notas/japones/9470e1d7-bbbe-4037-9032-4b5e1c0ffddf"
     )
     assert response.status_code == 404
     assert response.text == "Disciplina japones Inexistente"
 
 def test_modify_anotations_from_discipline_without_notes():
     response = client.patch(
-        "/disciplinas/portugues/9470e1d7-bbbe-4037-9032-4b5e1c0ffddf"
+        "/notas/portugues/9470e1d7-bbbe-4037-9032-4b5e1c0ffddf"
     )
     assert response.status_code == 404
     assert response.text == "Não há anotações nesta disciplina"
 
 def test_modify_anotations_from_discipline():
     response = client.patch(
-        "/disciplinas/matematica/f77fc0df-d9ac-4e70-a7c6-96d4bcf39484",
+        "/notas/matematica/f77fc0df-d9ac-4e70-a7c6-96d4bcf39484",
         params= {
             "nota": "Nota modificada com sucesso!"
         }
@@ -335,11 +335,11 @@ def test_delete_inexistent_discipline():
     assert response.text == "Disciplina japones Inexistente"
 
 def test_delete_note_with_inexistent_discipline():
-    response = client.delete("/disciplinas/japones/9470e1d7-bbbe-4037-9032-4b5e1c0ffddf")
+    response = client.delete("/notas/japones/9470e1d7-bbbe-4037-9032-4b5e1c0ffddf")
     assert response.status_code == 404
     assert response.text == "Disciplina japones Inexistente"
 
 def test_delete_inexistent_note():
-    response = client.delete("/disciplinas/química/ac0c3a10-f338-44eb-8f76-92e7c1983681")
+    response = client.delete("/notas/química/ac0c3a10-f338-44eb-8f76-92e7c1983681")
     assert response.status_code == 404
     assert response.text == "Anotação Inexistente"
