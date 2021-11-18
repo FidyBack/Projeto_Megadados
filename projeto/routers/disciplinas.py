@@ -70,7 +70,7 @@ def cria_disciplina(db: Session = Depends(get_db), disciplina: Disciplina = Depe
     status_code=status.HTTP_200_OK,
     summary="Modifica uma disciplina",
     description="Modifica todos os itens de uma disciplina, incluindo nome e professor, se o mesmo existir. (A modificação das anotações é feita por outra chamada)",
-    dependencies= [Depends(verifica_nome)],
+    dependencies= [Depends(verifica_nome), Depends(verifica_diciplina)],
 
 )
 def modifica_tudo(db: Session = Depends(get_db), nome: str = Depends(nome_disc), disciplina: Disciplina = Depends(disc)):
