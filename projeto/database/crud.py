@@ -5,11 +5,11 @@ from . import models
 
 
 # CRUD para as disciplinas
-def get_discipline(db: Session, nome: str):
-    return db.query(models.Disciplina).filter(models.Disciplina.nome == nome).first()
-
 def get_all_discipline(db: Session):
     return db.query(models.Disciplina).all()
+
+def get_discipline(db: Session, nome: str):
+    return db.query(models.Disciplina).filter(models.Disciplina.nome == nome).first()
 
 def get_all_discipline_names(db: Session):
     names = []
@@ -41,3 +41,5 @@ def modify_discipline(db: Session, nome: str, disciplina: schemas.Disciplina):
 def delete_discipline(db: Session, nome: str):
     db.query(models.Disciplina).filter(models.Disciplina.nome == nome).delete()
     db.commit()
+
+# CRUD para as anotações

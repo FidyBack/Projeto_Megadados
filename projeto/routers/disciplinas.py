@@ -14,12 +14,12 @@ router = APIRouter(
 )
 
 
-# Lista tudo de todas as disciplinas
+# Lista todas as disciplinas
 @router.get(
     "/",
     response_model=List[Disciplina],
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Lista tudo de todas as disciplinas",
+    summary="Lista todas as disciplinas",
     description="Retorna um dicionário com todas as disciplimas disponíveis e todas as informações presentes nelas",
     deprecated=True,
 )
@@ -60,7 +60,6 @@ def cria_disciplina(db: Session = Depends(get_db), disciplina: Disciplina = Depe
 
     - **Nome**: Nome da disciplina que será criada
     - **Professor** (*Opcional*): Nome do professor que leciona a disciplina
-    - **Anotações** (*Opcional*): Um dicionário com as anotações da matéria (O dicionário está construido com o conjunto *ID:Anotação*, onde o ID é constuido usando uuid)
     """
     return crud.create_discipline(db, disciplina=disciplina)
 
