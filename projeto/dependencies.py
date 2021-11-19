@@ -3,7 +3,7 @@ from fastapi.param_functions import Body
 from sqlalchemy.orm import Session
 
 from .database import database, crud, models
-from .schemas import Disciplina
+from .schemas import Disciplina, DisciplinaCreate
 
 models.Base.metadata.create_all(bind= database.engine)
 
@@ -18,10 +18,38 @@ def get_db():
 
 # Dependências Básicas
 def nome_disc(nome_disciplina: str = Path(..., description="O nome da disciplina desejada", example="Foo")):
-    return nome_disciplina.casefold()
+    return nome_disciplina
 
-def disc(
+def id_anotacao(id_nota: int = Path(..., description="Id da anotação", example="1")):
+    return id_nota
+
+def disc_norm(
     disciplina: Disciplina = Body(
+        ..., 
+        description="Corpo da criação da disciplina",
+        examples={
+            "completo": {
+                "summary": "Exemplo Completo",
+                "description": "Um exemplo com todos os elementos.",
+                "value": {
+                    "nome": "Foo",
+                    "professor": "Bar",
+                }
+            },
+            "minimo": {
+                "summary": "Exemplo Mínimo",
+                "description": "Um exemplo com apenas os elementos obrigatórios.",
+                "value": {
+                    "nome": "Foo"
+                }
+            },
+        }
+    )
+):
+    return disciplina
+
+def create_disc(
+    disciplina: DisciplinaCreate = Body(
         ..., 
         description="Corpo da criação da disciplina",
         examples={
@@ -47,40 +75,18 @@ def disc(
 
 
 # Dependências de Erros
-def verifica_nome(db: Session = Depends(get_db), nome: str = Depends(nome_disc)):
-    if (crud.get_discipline(db, nome) == None):
-        raise HTTPException(status_code=404, detail=f"Disciplina {nome} Inexistente")
+def verifica_nome(nome_disciplina: str, db: Session = Depends(get_db)):
+    if (crud.get_discipline(db, nome_disciplina) == None):
+        raise HTTPException(status_code=404, detail=f"Disciplina {nome_disciplina} Inexistente")
 
-def verifica_diciplina(db: Session = Depends(get_db), disciplina: Disciplina = Depends(disc)):
+def verifica_diciplina(db: Session = Depends(get_db), disciplina: Disciplina = Depends(disc_norm)):
     if (crud.get_discipline(db, disciplina.nome) != None):
         raise HTTPException(status_code=418, detail=f"Disciplina {disciplina.nome} já existe")
 
-# class NotaDisciplinaQuery:
-#     def __init__(self, nome_disciplina: str = Depends(nome_disc), id_nota: UUID = Query(..., description="Id da anotação em formato UUID", example="Bar")):
-#         self.nome_disciplina = nome_disciplina
-#         self.id_nota = str(id_nota)
+def verifica_campo_nota(nome_disciplina: str, db: Session = Depends(get_db)):
+    if (crud.get_discipline_notes(db, nome_disciplina) == []):
+        raise HTTPException(status_code=404, detail= "Não há anotações nesta disciplina")
 
-# class NotaDisciplinaPath:
-#     def __init__(self, nome_disciplina: str = Depends(nome_disc), id_nota: UUID = Path(..., description="Id da anotação em formato UUID", example="Bar")):
-#         self.nome_disciplina = nome_disciplina
-#         self.id_nota = str(id_nota)
-
-# class CommonInfoQ:
-#     def __init__(self, nome_disc: NotaDisciplinaQuery = Depends(), nota: str = Query(...,  description="Anotação requerida", example="Baz")):
-#         self.nome_disciplina = nome_disc.nome_disciplina
-#         self.id_nota = nome_disc.id_nota
-#         self.nota = nota
-
-# class CommonInfoP:
-#     def __init__(self, disc: NotaDisciplinaPath = Depends(), nota: str = Query(...,  description="Anotação requerida", example="Baz")):
-#         self.nome_disciplina = disc.nome_disciplina
-#         self.id_nota = disc.id_nota
-#         self.nota = nota
-
-# async def verifica_campo_nota(nome: str = Depends(nome_disc)):
-#     if "anotacoes" not in fake_db[nome]:
-#         raise HTTPException(status_code=404, detail= "Não há anotações nesta disciplina")
-
-# async def verifica_nota_especifica(notaDisc: NotaDisciplinaPath = Depends()):
-#     if notaDisc.id_nota not in fake_db[notaDisc.nome_disciplina]["anotacoes"]:
-#         raise HTTPException(status_code=404, detail="Anotação Inexistente")
+async def verifica_nota_especifica(nome_disciplina: str,  id_nota: int, db: Session = Depends(get_db)):
+    if (crud.get_one_note(db, nome_disciplina, id_nota) == None):
+        raise HTTPException(status_code=404, detail="Anotação Inexistente")

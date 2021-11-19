@@ -1,11 +1,10 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Dict
-from uuid import UUID
 
 
 class DisciplinaBase(BaseModel):
     nome: str = Field(
-        ..., 
+        ...,
         title="Nome da Disciplina", 
         description="Nome único que identifica cada matéria",
     )
@@ -33,7 +32,6 @@ class AnotacaoCreate(AnotacaoBase):
     pass
 
 class Anotacao(AnotacaoBase):
-    id: int
     nome_disciplina: str
 
     class Config:

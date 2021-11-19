@@ -1,12 +1,10 @@
 from fastapi import APIRouter, status, Depends
-from fastapi.param_functions import Body
 from sqlalchemy.orm import Session
 from typing import List
 
-# from ..dependencies import , , , 
-from ..dependencies import get_db, nome_disc, verifica_nome, verifica_diciplina, disc
-from ..schemas import Disciplina
-from ..database import crud, models
+from ..dependencies import *
+from ..schemas import Disciplina, DisciplinaCreate
+from ..database import crud
 
 router = APIRouter(
     prefix="/disciplinas",
@@ -33,6 +31,7 @@ def ler_tudo(db: Session = Depends(get_db)):
     status_code=status.HTTP_202_ACCEPTED,
     summary="Lista tudo de uma disciplina",
     dependencies=[Depends(verifica_nome)],
+    deprecated=True,
 )
 def ler_disciplinas(db: Session = Depends(get_db), nome: str = Depends(nome_disc)):
     return crud.get_discipline(db, nome = nome)
@@ -54,7 +53,7 @@ def ler_nomes(db: Session = Depends(get_db)):
     summary="Cria uma disciplina",
     dependencies=[Depends(verifica_diciplina)]
 )
-def cria_disciplina(db: Session = Depends(get_db), disciplina: Disciplina = Depends(disc)):
+def cria_disciplina(db: Session = Depends(get_db), disciplina: DisciplinaCreate = Depends(create_disc)):
     """
     Cria uma disciplina com todas as informações necessárias, tais como:
 
@@ -66,14 +65,14 @@ def cria_disciplina(db: Session = Depends(get_db), disciplina: Disciplina = Depe
 # Modifica uma Disciplina
 @router.patch(
     "/{nome_disciplina}", 
-    # response_model=Disciplina,
+    response_model=Disciplina,
     status_code=status.HTTP_200_OK,
     summary="Modifica uma disciplina",
     description="Modifica todos os itens de uma disciplina, incluindo nome e professor, se o mesmo existir. (A modificação das anotações é feita por outra chamada)",
     dependencies= [Depends(verifica_nome), Depends(verifica_diciplina)],
 
 )
-def modifica_tudo(db: Session = Depends(get_db), nome: str = Depends(nome_disc), disciplina: Disciplina = Depends(disc)):
+def modifica_tudo(db: Session = Depends(get_db), nome: str = Depends(nome_disc), disciplina: Disciplina = Depends(disc_norm)):
     return crud.modify_discipline(db, nome, disciplina=disciplina)
 
 # Deleta uma Disciplina
