@@ -50,7 +50,12 @@ def delete_discipline(db: Session, nome: str):
 
 # CRUD para as anotações
 def get_discipline_notes(db: Session, nome: str):
-    return db.query(models.Anotacao).filter(models.Anotacao.nome_disciplina == nome).all()
+    notas = []
+    nome_notas = models.Anotacao.nome_disciplina
+    for anotacao in db.query(models.Anotacao).filter(nome_notas == nome).all():
+        notas.append(anotacao.nota)
+    return notas
+    # return db.query(models.Anotacao).filter(models.Anotacao.nome_disciplina == nome).all()
 
 def add_discipline_note(db: Session, nota: schemas.AnotacaoCreate, nome: str):
     db_anotacao = models.Anotacao(**nota.dict(), nome_disciplina = nome)

@@ -23,7 +23,8 @@ def ler_anotacao(db: Session = Depends(get_db), nome: str = Depends(nome_disc)):
 
 # Adiciona uma Nota
 @router.put(
-    "/{nome_disciplina}", 
+    "/{nome_disciplina}",
+    response_model=Anotacao,
     status_code=status.HTTP_200_OK,
     summary="Adiciona uma Nota",
     description="Cria uma nova nota dentro da disciplina",
